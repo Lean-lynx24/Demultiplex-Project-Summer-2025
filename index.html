@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demultiplexing Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        select, input, button {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex justify-center items-start min-h-screen p-5">
+
+<div class="container bg-white rounded-xl shadow-lg p-8 w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-gray-800 border-b-2 border-blue-500 pb-3 mb-6 text-center">Demultiplexing Tool</h1>
+    
+    <p class="text-gray-600 mb-8 text-center">
+        Select your operation mode. Place your data folders inside the 'data' directory next to the application.
+    </p>
+
+    <form id="main-processing-form" method="POST" action="/start_process">
+        <div class="mb-6">
+            <label for="operation-mode" class="block text-lg font-semibold text-gray-700 mb-2">Operation Mode:</label>
+            <select id="operation-mode" name="mode" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="bcl2fastq">Run bcl2fastq</option>
+                <option value="demux-fastq">Demultiplex FASTQ from Summary</option>
+            </select>
+        </div>
+
+        <!-- bcl2fastq Form Section -->
+        <div id="bcl2fastq-form-section">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">bcl2fastq Options</h2>
+            <div>
+                <label for="runfolder-select" class="block font-medium text-gray-700 mb-2">Select Run Folder:</label>
+                <select id="runfolder-select" name="runfolder_name" required class="w-full p-3 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-2 focus:ring-blue-500">
+                    {% if run_folders %}
+                        <option value="" disabled selected>-- Choose a run folder --</option>
+                        {% for folder in run_folders %}
+                            <option value="{{ folder }}">{{ folder }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled selected>No run folders found in the 'data' directory</option>
+                    {% endif %}
+                </select>
+                <p class="text-sm text-gray-500 mt-2">Output will be saved in a new 'bcl2fastq_output' folder inside your selected run folder.</p>
+            </div>
+        </div>
+
+        <!-- Demultiplex from FASTQ Form Section (Simplified) -->
+        <div id="demux-fastq-form-section" class="hidden">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Demultiplex FASTQ Options</h2>
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md">
+                <p class="font-bold">Note:</p>
+                <p>This mode is currently under development in the new launcher. For now, please use the `bcl2fastq` option.</p>
+            </div>
+        </div>
+
+        <button type="submit" id="submit-button" class="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Start Selected Process
+        </button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const operationModeSelect = document.getElementById('operation-mode');
+        const bcl2fastqFormSection = document.getElementById('bcl2fastq-form-section');
+        const demuxFastqFormSection = document.getElementById('demux-fastq-form-section');
+        const submitButton = document.getElementById('submit-button');
+        const runfolderSelect = document.getElementById('runfolder-select');
+
+        function toggleFormVisibility() {
+            if (operationModeSelect.value === 'bcl2fastq') {
+                bcl2fastqFormSection.classList.remove('hidden');
+                demuxFastqFormSection.classList.add('hidden');
+                runfolderSelect.required = true;
+                submitButton.disabled = false;
+            } else { // mode === 'demux-fastq'
+                bcl2fastqFormSection.classList.add('hidden');
+                demuxFastqFormSection.classList.remove('hidden');
+                runfolderSelect.required = false;
+                submitButton.disabled = true; 
+            }
+        }
+        toggleFormVisibility();
+        operationModeSelect.addEventListener('change', toggleFormVisibility);
+
+        const mainForm = document.getElementById('main-processing-form');
+        mainForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Starting...';
+
+            const formData = new FormData(mainForm);
+
+            fetch('/start_process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // *** THIS IS THE ONLY LINE THAT CHANGED ***
+                    // If the server confirms success, open the results page in a NEW TAB.
+                    window.open(data.results_url, '_blank');
+                    
+                    // Re-enable the button on the main page so another run can be started.
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Start Selected Process';
+                } else {
+                    alert('Error: ' + data.message);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Start Selected Process';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('A critical error occurred while trying to start the process.');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Start Selected Process';
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
+
