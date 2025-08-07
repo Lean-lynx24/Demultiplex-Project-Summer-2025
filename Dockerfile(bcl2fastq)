@@ -1,0 +1,39 @@
+# Dockerfile for the bcl2fastq Worker
+# Use a Miniconda base image, which includes Conda and Python
+FROM condaforge/miniforge3:latest
+
+# Set environment variables to prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system tools used by bcl2fastSCRIPT.sh for compression.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    p7zip-full \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# --- Install bcl2fastq using Conda ---
+# Create a dedicated Conda environment and install bcl2fastq.
+RUN conda create -n bcl_env -y && \
+    conda run -n bcl_env conda install -y -c dranew -c conda-forge -c bioconda \
+        bcl2fastq=2.19.0 && \
+    conda clean --all --yes
+
+# Add the environment's bin directory to the PATH
+ENV PATH="/opt/conda/envs/bcl_env/bin:$PATH"
+
+# Set the default working directory inside the container.
+WORKDIR /data
+
+# --- Add your bcl2fastSCRIPT.sh ---
+COPY bcl2fastSCRIPT.sh /usr/local/bin/bcl2fastSCRIPT.sh
+
+# Make the script executable.
+RUN chmod +x /usr/local/bin/bcl2fastSCRIPT.sh
+
+# Set the default entrypoint to be your script
+ENTRYPOINT ["/usr/local/bin/bcl2fastSCRIPT.sh"]
+
+# Define default arguments for the ENTRYPOINT.
+# By default, display the help menu for the user.
+CMD ["--help"]
+
