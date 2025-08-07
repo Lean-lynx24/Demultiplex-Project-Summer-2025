@@ -1,0 +1,37 @@
+# Dockerfile for the Flask Web App (Controller)
+# This container's purpose is to serve the UI and start the worker container.
+
+# Step 1: Start with a Python base image
+FROM python:3.9-slim
+
+# Step 2: Install the Docker CLI client
+# This is necessary so the app can execute 'docker run' commands.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
+    install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    chmod a+r /etc/apt/keyrings/docker.gpg && \
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Step 3: Set the working directory
+WORKDIR /app
+
+# Step 4: Install Python dependencies (Flask)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Step 5: Copy your application code
+COPY app.py .
+COPY templates/ ./templates/
+
+# Step 6: Expose the port for the web server
+EXPOSE 5000
+
+# Step 7: Define the command to run the application
+CMD ["python", "app.py"]
